@@ -1239,12 +1239,6 @@ impl<T: Iterator<Item = char>> Scanner<T> {
                 max_indent = self.mark.col;
             }
 
-            // Check for a tab character messing the indentation.
-            if (*indent == 0 || self.mark.col < *indent) && self.buffer[0] == '\t' {
-                return Err(ScanError::new(self.mark,
-                        "while scanning a block scalar, found a tab character where an indentation space is expected"));
-            }
-
             if !is_break(self.ch()) {
                 break;
             }
@@ -2020,6 +2014,34 @@ key:
         next_scalar!(p, TScalarStyle::Plain, "complex key");
         next!(p, Value);
         next_scalar!(p, TScalarStyle::Plain, "complex value");
+        next!(p, BlockEnd);
+        next!(p, BlockEnd);
+        next!(p, StreamEnd);
+        end!(p);
+    }
+
+    #[test]
+    fn test_block_scalar_with_leading_indent() {
+        let s = "
+files:
+  - item 1: |
+    \tabc
+";
+        let mut p = Scanner::new(s.chars());
+        next!(p, StreamStart(..));
+        next!(p, BlockMappingStart);
+        next!(p, Key);
+        next_scalar!(p, TScalarStyle::Plain, "files");
+        next!(p, Value);
+        next!(p, BlockSequenceStart);
+        next!(p, BlockEntry);
+        next!(p, BlockMappingStart);
+        next!(p, Key);
+        next_scalar!(p, TScalarStyle::Plain, "item 1");
+        next!(p, Value);
+        next_scalar!(p, TScalarStyle::Literal, "");
+        next_scalar!(p, TScalarStyle::Plain, "\tabc");
+        next!(p, BlockEnd);
         next!(p, BlockEnd);
         next!(p, BlockEnd);
         next!(p, StreamEnd);
